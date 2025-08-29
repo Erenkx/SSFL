@@ -60,7 +60,7 @@ def dirichlet_split(
             indices. Keys are client IDs starting from 1.
     """
     np.random.seed(2022)
-    N = labels.shape[0] # total number of pairs
+    N = labels.shape[0]
     clients = {}
 
     min_client_size = 0
