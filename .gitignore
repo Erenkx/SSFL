@@ -1,0 +1,3 @@
+# Ignore image files in train and test folders
+data/Retina/train/
+data/Retina/test/
