@@ -212,10 +212,10 @@ class RandomResizedCropAndInterpolationWithTwoPic:
     
     def __repr__(self):
         interp_str = (
-            ' '.join(
-                [_pil_interpolation_to_str[interp]] 
+            ' '.join([
+                _pil_interpolation_to_str[interp]
                 for interp in self.interpolation
-            ) 
+            ]) 
             if isinstance(self.interpolation, (tuple, list))
             else _pil_interpolation_to_str[self.interpolation]
         )
