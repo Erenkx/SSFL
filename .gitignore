@@ -1,3 +1,6 @@
 # Ignore image files in train and test folders
 data/Retina/train/
 data/Retina/test/
+
+# Ignore all __pycache__ folders
+__pycache__/
