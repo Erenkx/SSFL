@@ -45,26 +45,29 @@ class LARS(torch.optim.Optimizer):
                     continue
 
                 if param.ndim > 1:
-                    grad = grad.add(param, alpha=group["weight_decay"])
+                    grad = grad.add(param, alpha=group['weight_decay'])
+
                     param_norm = torch.norm(param)
                     grad_norm = torch.norm(grad)
                     one = torch.ones_like(param_norm)
+
                     trust_ratio = torch.where(
                         param_norm > 0.0,
                         torch.where(
                             grad_norm > 0,
-                            group["trust_coefficient"] * param_norm / grad_norm,
+                            group['trust_coefficient'] * param_norm /
+                            grad_norm,
                             one
                         ),
                         one
                     )
                     grad = grad.mul(trust_ratio)
-
+    
                 state = self.state[param]
-                if "mu" not in state:
-                    state["mu"] = torch.zeros_like(param)
+                if 'mu' not in state:
+                    state['mu'] = torch.zeros_like(param)
                     
-                mu = state["mu"]
-                mu.mul_(group["momentum"]).add_(grad)
+                mu = state['mu']
+                mu.mul_(group['momentum']).add_(grad)
 
-                param.add_(mu, alpha=-group["lr"])
+                param.add_(mu, alpha=-group['lr'])
