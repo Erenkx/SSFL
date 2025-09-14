@@ -238,12 +238,28 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
             )
         
 
+def topk_sparsify(tensor, k_frac):
+    flat = tensor.view(-1)
+    k = max(1, int(k_frac * flat.numel()))
+    _, topk_idx = torch.topk(flat.abs(), k, sorted=False)
+    mask = torch.zeros_like(flat, dtype=torch.bool)
+    mask[topk_idx] = True
+    sparse_tensor = torch.zeros_like(flat)
+    sparse_tensor[topk_idx] = flat[topk_idx]
+
+    return sparse_tensor.view_as(tensor)
+
+
 def average_model(args, model_avg, model_all):
     model_avg.cpu()
     print('Calculating the model average...')
     params = dict(model_avg.named_parameters())
 
+    topk_ratio = getattr(args, 'topk_ratio', 0.1)
+
     for name, param in params.items():
+        agg_update = torch.zeros_like(param.data)
+
         for client in range(len(args.proxy_clients)):
             single_client = args.proxy_clients[client]
 
@@ -252,26 +268,28 @@ def average_model(args, model_avg, model_all):
                 np.array(single_client_weight)
             ).float()
 
-            if client == 0:
-                if args.distributed:
-                    tmp_param_data = dict(
-                        model_all[single_client].module.named_parameters()
-                    )[name].data * single_client_weight
-                else:
-                    tmp_param_data = dict(
-                        model_all[single_client].named_parameters()
-                    )[name].data * single_client_weight
+            if args.distributed:
+                local_param = dict(
+                    model_all[single_client].module.named_parameters()
+                )[name].data
             else:
-                if args.distributed:
-                    tmp_param_data += dict(
-                        model_all[single_client].module.named_parameters()
-                    )[name].data * single_client_weight
-                else:
-                    tmp_param_data += dict(
-                        model_all[single_client].named_parameters()
-                    )[name].data * single_client_weight
+                local_param = dict(
+                    model_all[single_client].named_parameters()
+                )[name].data
 
-        params[name].data.copy_(tmp_param_data)
+            delta = local_param.cpu() - param.data
+
+            if (
+                param.numel() < 1000
+                or '.bias' in name
+                or 'norm' in name.lower()
+            ):
+                agg_update += delta * single_client_weight
+            else:
+                sparse_delta = topk_sparsify(delta, topk_ratio)
+                agg_update += sparse_delta * single_client_weight
+
+        params[name].data += agg_update
 
     print('Updating each client model parameters...')
 
