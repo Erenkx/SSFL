@@ -251,11 +251,11 @@ def topk_sparsify(tensor, k_frac):
 
 
 def average_model(args, model_avg, model_all):
-    model_avg.cpu()
     print('Calculating the model average...')
     params = dict(model_avg.named_parameters())
-
-    topk_ratio = getattr(args, 'topk_ratio', 0.1)
+    train_mode = args.train_mode
+    if train_mode == 'pretrain': 
+        topk_ratio = getattr(args, 'topk_ratio', 0.1)
 
     for name, param in params.items():
         agg_update = torch.zeros_like(param.data)
@@ -264,9 +264,10 @@ def average_model(args, model_avg, model_all):
             single_client = args.proxy_clients[client]
 
             single_client_weight = args.clients_weightes[single_client]
-            single_client_weight = torch.from_numpy(
-                np.array(single_client_weight)
-            ).float()
+            single_client_weight = torch.tensor(
+                single_client_weight, dtype=torch.float,
+                device=param.data.device
+            )
 
             if args.distributed:
                 local_param = dict(
@@ -277,10 +278,11 @@ def average_model(args, model_avg, model_all):
                     model_all[single_client].named_parameters()
                 )[name].data
 
-            delta = local_param.cpu() - param.data
+            delta = local_param - param.data
 
             if (
-                param.numel() < 1000
+                train_mode == 'finetune'
+                or param.numel() < 10000
                 or '.bias' in name
                 or 'norm' in name.lower()
             ):
