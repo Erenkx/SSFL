@@ -10,10 +10,9 @@ import torch
 
 class LARS(torch.optim.Optimizer):
     """
-    LARS optimizer with optional trust ratio scaling.
+    LARS optimizer.
 
-    No rate scaling or weight decay is applied to parameters of 
-    dimensionality <= 1.
+    No rate scaling or weight decay for parameters of dim <= 1.
 
     Reference:
         https://github.com/facebookresearch/moco-v3
@@ -55,8 +54,11 @@ class LARS(torch.optim.Optimizer):
                         param_norm > 0.0,
                         torch.where(
                             grad_norm > 0,
-                            group['trust_coefficient'] * param_norm /
-                            grad_norm,
+                            (
+                                group['trust_coefficient']
+                                * param_norm
+                                / grad_norm
+                            ),
                             one
                         ),
                         one
