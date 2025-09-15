@@ -17,9 +17,9 @@ def add_weight_decay(model, weight_decay=1e-5, skip_list=()):
         skip_list (list): A list of parameter names to skip weight 
             decay. Default is ().
 
-        Returns:
-            list: A list of parameter groups with and without weight 
-                decay.
+    Returns:
+        list: A list of parameter groups with and without weight 
+            decay.
     """
     decay = []
     no_decay = []
