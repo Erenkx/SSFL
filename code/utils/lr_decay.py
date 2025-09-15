@@ -1,5 +1,5 @@
 """
-Learning rate decay utilities.
+This module provides utilities for learning rate decay.
 
 Originally adapted from the MAE codebase:
 https://github.com/facebookresearch/mae
@@ -7,7 +7,7 @@ https://github.com/facebookresearch/mae
 
 def get_layer_id_for_vit(name, num_layers):
     """
-    Assigns a parameter to a layer ID for ViT models.
+    Gets the layer ID for a given ViT model parameter name.
 
     Reference:
         https://github.com/microsoft/unilm/blob/master/beit/optim_factory.py#L33
@@ -29,7 +29,7 @@ def param_groups_lrd(
     layer_decay=0.75
 ):
     """
-    Parameter groups for layer-wise learning rate decay.
+    Performs layer-wise learning rate decay.
 
     Reference:
         https://github.com/microsoft/unilm/blob/master/beit/optim_factory.py#L58
