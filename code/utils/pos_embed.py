@@ -9,7 +9,7 @@ import torch
 import numpy as np
 
 
-def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
+def _get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     """
     Generates 1D sine-cosine positional embeddings from grid positions.
 
@@ -36,7 +36,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     return emb
 
 
-def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
+def _get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     """
     Generates 2D sine-cosine positional embeddings from a mesh grid.
 
@@ -53,8 +53,8 @@ def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     # Check if embed_dim is even
     assert embed_dim % 2 == 0
 
-    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])
-    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])
+    emb_h = _get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])
+    emb_w = _get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])
     emb = np.concatenate([emb_h, emb_w], axis=1)
 
     return emb
@@ -84,7 +84,7 @@ def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False):
     grid = np.stack(grid, axis=0)
     grid = grid.reshape(2, 1, grid_size, grid_size)
 
-    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
+    pos_embed = _get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
 
     if cls_token:
         cls_embed = np.zeros((1, embed_dim), dtype=np.float32)
