@@ -354,7 +354,7 @@ def main(args, model):
 
     while True:
         epoch += 1
-        print('epoch: ', epoch)
+        print('epoch:', epoch)
 
         # Randomly select partial clients
         if args.num_local_clients == len(args.dis_csv_files): # all clients
@@ -373,8 +373,8 @@ def main(args, model):
         for cur_single_client, proxy_single_client in zip(
             cur_selected_clients, args.proxy_clients
         ):
-            print('cur_single_client: ', cur_single_client)
-            print('proxy_single_client: ', proxy_single_client)
+            print('cur_single_client:', cur_single_client)
+            print('proxy_single_client:', proxy_single_client)
 
             args.single_client = cur_single_client
             args.client_weights[proxy_single_client] = (
@@ -520,13 +520,13 @@ def main(args, model):
             print(f'Max accuracy: {max_accuracy:.2f}%')
             if log_writer is not None:
                 log_writer.update(
-                    test_acc1=test_stats['acc1'], head="perf", step=epoch
+                    test_acc1=test_stats['acc1'], head='perf', step=epoch
                 )
                 log_writer.update(
-                    test_acc5=test_stats['acc5'], head="perf", step=epoch
+                    test_acc5=test_stats['acc5'], head='perf', step=epoch
                 )
                 log_writer.update(
-                    test_loss=test_stats['loss'], head="perf", step=epoch
+                    test_loss=test_stats['loss'], head='perf', step=epoch
                 )
 
             log_stats = {
