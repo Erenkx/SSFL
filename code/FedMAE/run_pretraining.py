@@ -166,7 +166,7 @@ def get_args():
         help='Which data partition to use'
     )
     parser.add_argument(
-        '--topk_ratio', type=float, default=0.1,
+        '--topk_ratio', type=float, default=1.0,
         help='Top-k sparsification ratio'
     )
 
