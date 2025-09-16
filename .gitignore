@@ -1,0 +1,9 @@
+# Ignore image files in train and test folders
+data/Retina/train/
+data/Retina/test/
+
+# Ignore checkpoints and logs
+data/ckpts/
+
+# Ignore all __pycache__ folders
+__pycache__/
