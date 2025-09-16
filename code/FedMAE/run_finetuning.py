@@ -12,6 +12,7 @@ from copy import deepcopy
 
 import torch
 import numpy as np
+import torch.distributed as dist
 import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 
@@ -559,7 +560,13 @@ def main(args, model):
         ):
             total_time = time.time() - start_time
             total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+
+            if args.distributed and dist.is_initialized():
+                dist.destroy_process_group()
+
+            print('=============== End of fine-tuning ===============')
             print('Training time {}'.format(total_time_str))
+            
             break
 
 
