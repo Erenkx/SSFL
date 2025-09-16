@@ -1,6 +1,16 @@
+"""
+This module provides utility functions for federated averaging (FedAvg)
+in a distributed training setup.
+
+It includes functions for client selection, model averaging, and 
+validation.
+
+Originally adapted from the SSL-FL codebase:
+https://github.com/rui-yan/SSL-FL
+"""
+
 from __future__ import absolute_import, division, print_function
 
-import os
 from copy import deepcopy
 
 import numpy as np
@@ -14,16 +24,19 @@ from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 from . import misc as misc
 from .lars import LARS
 from .lr_decay import param_groups_lrd
+from .weight_decay import add_weight_decay
 from .pos_embed import interpolate_pos_embed
 from .misc import NativeScalerWithGradNormCount as NativeScaler
-from .optim_factory import create_optimizer, add_weight_decay, \
-    LayerDecayValueAssigner
 
 
 def Partial_Client_Selection(args, model, mode='pretrain'):
+    """
+    Selects a subset of clients for local training in a federated
+    learning setup.
+    """
     device = torch.device(args.device)
 
-    if args.num_local_clients == -1:
+    if args.num_local_clients == -1: # all clients
         args.proxy_clients = args.dis_csv_files
         args.num_local_clients = len(args.dis_csv_files)
     else:
@@ -31,17 +44,17 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
             'train_' + str(i) for i in range(args.num_local_clients)
         ]
 
+    # Generate model for each client
     model_all = {}
     optimizer_all = {}
     criterion_all = {}
-    lr_scheduler_all = {}
-    wd_scheduler_all = {}
     loss_scaler_all = {}
     mixup_fn_all = {}
     args.learning_rate_record = {}
     args.t_total = {}
 
-    if (mode == 'finetune' or mode == 'linprob') and args.finetune:
+    # Load pretrained model for finetuning
+    if mode == 'finetune' and args.finetune:
         if args.finetune.startswith('https'):
             checkpoint = torch.hub.load_state_dict_from_url(
                 args.finetune, map_location='cpu', check_hash=True
@@ -69,13 +82,17 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
 
         state_dict = model.state_dict()
         for k in ['head_weight', 'head_bias']:
-            if k in checkpoint_model \
-                and checkpoint_model[k].shape == state_dict[k].shape:
+            if (
+                k in checkpoint_model
+                and checkpoint_model[k].shape != state_dict[k].shape
+            ):
                 print(f'Removing key {k} from pretrained checkpoint')
                 del checkpoint_model[k]
 
+        # Interpolate position embedding
         interpolate_pos_embed(model, checkpoint_model)
 
+        # Load pre-trained model
         if args.model_name == 'mae':
             msg = model.load_state_dict(checkpoint_model, strict=False)
             print(msg)
@@ -92,26 +109,9 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
 
         if mode == 'finetune':
             trunc_normal_(model.head.weight, std=2e-5)
-        elif mode == 'linprob':
-            trunc_normal_(model.head.weight, std=0.01)
 
-            model.head = torch.nn.Sequential(
-                torch.nn.BatchNorm1d(
-                    model.head.in_features,
-                    affine=False,
-                    eps=1e-6
-                ),
-                model.head
-            )
-
-            for _, p in model.named_parameters():
-                p.requires_grad = False
-            for _, p in model.head.named_parameters():
-                p.requires_grad = True
-
-    if args.distributed:
-        if args.sync_bn:
-            model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    if args.distributed and args.sync_bn:
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
 
     for proxy_single_client in args.proxy_clients:
         num_tasks = misc.get_world_size()
@@ -135,6 +135,7 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
             total_batch_size * num_training_steps_per_inner_epoch
         ))
 
+        # model_all
         model_all[proxy_single_client] = deepcopy(model)
         model_all[proxy_single_client] = model_all[proxy_single_client].to(
             device
@@ -148,12 +149,11 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
                     find_unused_parameters=True
                 )
             )
-
-        if args.distributed:
             model_without_ddp = model_all[proxy_single_client].module
         else:
             model_without_ddp = model_all[proxy_single_client]
 
+        # optimizer_all
         if mode =='pretrain':
             if args.model_name == 'mae':
                 param_groups = add_weight_decay(
@@ -176,14 +176,8 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
                     param_groups,
                     lr=args.lr
                 )
-        elif mode == 'linprob':
-            if args.model_name == 'mae':
-                optimizer_all[proxy_single_client] = LARS(
-                    model_without_ddp.head.parameters(),
-                    lr=args.lr,
-                    weight_decay=args.weight_decay
-                )
 
+        # criterion_all, mixup_fn_all
         if mode == 'finetune':
             mixup_fn = None
             mixup_active = (
@@ -213,9 +207,7 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
                 criterion = nn.CrossEntropyLoss()
             criterion_all[proxy_single_client] = criterion
 
-        if mode == 'linprob':
-            criterion_all[proxy_single_client] = nn.CrossEntropyLoss()
-
+        # loss_scaler_all
         loss_scaler_all[proxy_single_client] = NativeScaler()
 
         args.t_total[proxy_single_client] = (
@@ -225,7 +217,7 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
 
         args.learning_rate_record[proxy_single_client] = []
 
-    args.clients_weightes = {}
+    args.client_weights = {}
     args.global_step_per_client = {name: 0 for name in args.proxy_clients}
 
     if args.model_name == 'mae':
@@ -239,6 +231,10 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
         
 
 def average_model(args, model_avg, model_all):
+    """
+    Averages the parameters of multiple client models into a single
+    global model.
+    """
     model_avg.cpu()
     print('Calculating the model average...')
     params = dict(model_avg.named_parameters())
@@ -247,7 +243,7 @@ def average_model(args, model_avg, model_all):
         for client in range(len(args.proxy_clients)):
             single_client = args.proxy_clients[client]
 
-            single_client_weight = args.clients_weightes[single_client]
+            single_client_weight = args.client_weights[single_client]
             single_client_weight = torch.from_numpy(
                 np.array(single_client_weight)
             ).float()
@@ -289,44 +285,17 @@ def average_model(args, model_avg, model_all):
             tmp_params[name].data.copy_(param.data)
 
 
-class AverageMeter(object):
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
-        self.count += n
-        self.avg = self.sum / self.count
-
-
-def  simple_accuracy(preds, labels):
-    return (preds == labels).mean()
-
-
-def save_model(args, model):
-    model_to_save = model.module if hasattr(model, 'module') else model
-    client_name = os.path.basename(args.single_client).split('.')[0]
-    model_checkpoint = os.path.join(
-        args.output_dir, f'{args.name}_{client_name}_checkpoint.bin'
-    )
-    torch.save(model_to_save.state_dict(), model_checkpoint)
-    print(f'Saved model checkpoint to {model_checkpoint}')
-
-
 def valid(args, model, data_loader):
+    """
+    Validates the global model on a validation dataset and computes
+    accuracy and loss metrics.
+    """
     criterion = nn.CrossEntropyLoss()
     metric_logger = misc.MetricLogger(delimiter='  ')
     header = 'Test:'
 
     model.eval()
-    print('++++++ Running validation ++++++')
+    print('++++++ Running Validation ++++++')
     for batch in metric_logger.log_every(data_loader, 10, header):
         images = batch[0]
         target = batch[-1]
@@ -348,18 +317,3 @@ def valid(args, model, data_loader):
     ))
 
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
-
-
-def metric_evaluation(args, eval_result):
-    if args.nb_classes == 1:
-        if args.best_acc[args.single_client] < eval_result:
-            Flag = False
-        else:
-            Flag = True
-    else:
-        if args.best_acc[args.single_client] < eval_result:
-            Flag = True
-        else:
-            Flag = False
-
-    return Flag
