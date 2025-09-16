@@ -366,9 +366,9 @@ def main(args, model):
 
         # Get the quantity of clients joined in the FL train for 
         # updating the clients weights
-        cur_tot_client_Lens = 0
+        cur_tot_client_lens = 0
         for client in cur_selected_clients:
-            cur_tot_client_Lens += args.clients_with_len[client]
+            cur_tot_client_lens += args.clients_with_len[client]
 
         for cur_single_client, proxy_single_client in zip(
             cur_selected_clients, args.proxy_clients
@@ -377,8 +377,8 @@ def main(args, model):
             print('proxy_single_client: ', proxy_single_client)
 
             args.single_client = cur_single_client
-            args.clients_weights[proxy_single_client] = (
-                args.clients_with_len[cur_single_client] / cur_tot_client_Lens
+            args.client_weights[proxy_single_client] = (
+                args.clients_with_len[cur_single_client] / cur_tot_client_lens
             )
 
             # Get dataset for each client for pretraining finetuning 
@@ -390,7 +390,8 @@ def main(args, model):
             print(f'========= client: {proxy_single_client} =========')
             if args.distributed:
                 sampler_train = torch.utils.data.DistributedSampler(
-                    dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
+                    dataset_train, num_replicas=num_tasks, rank=global_rank, 
+                    shuffle=True
                 )
             else:    
                 sampler_train = torch.utils.data.RandomSampler(dataset_train)
@@ -430,7 +431,8 @@ def main(args, model):
             print('Batch size = %d' % total_batch_size)
             print('Number of training examples = %d' % len(dataset_train))
             print(
-                'Number of training training per epoch = %d' % num_training_steps_per_inner_epoch
+                'Number of training training per epoch = %d' %
+                num_training_steps_per_inner_epoch
             )
 
             if args.distributed:
@@ -441,13 +443,14 @@ def main(args, model):
             if args.eval:
                 misc.load_model(
                     args=args, model_without_ddp=model_without_ddp,
-                    optimizer=optimizer, loss_scaler=loss_scaler, model_ema=None
+                    optimizer=optimizer, loss_scaler=loss_scaler, 
+                    model_ema=None
                 )
 
                 test_stats = valid(args, model, data_loader_test)
                 print(
-                    f'Accuracy of the network on the {len(dataset_test)} test '
-                    f'images: {test_stats['acc1']:.1f}%'
+                    f'Accuracy of the network on the {len(dataset_test)} '
+                    f"test images: {test_stats['acc1']:.1f}%"
                 )
                 model.cpu()
                 exit(0)
@@ -501,7 +504,7 @@ def main(args, model):
             test_stats = valid(args, model_avg, data_loader_val)
             print(
                 f'Accuracy of the network on the {len(dataset_val)} '
-                f'validation images: {test_stats['acc1']:.1f}%'
+                f"validation images: {test_stats['acc1']:.1f}%"
             )
 
             if max_accuracy < test_stats['acc1']:
@@ -509,7 +512,8 @@ def main(args, model):
                 if args.output_dir:
                     misc.save_model(
                         args=args, model=model_avg, 
-                        model_without_ddp=model_without_ddp, optimizer=optimizer,
+                        model_without_ddp=model_without_ddp, 
+                        optimizer=optimizer,
                         loss_scaler=loss_scaler, epoch='best', model_ema=None
                     )
                 
