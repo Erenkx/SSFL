@@ -558,16 +558,16 @@ def main(args, model):
             args.global_step_per_client[proxy_single_client] 
             >= args.t_total[proxy_single_client]
         ):
-            total_time = time.time() - start_time
-            total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-
-            if args.distributed and dist.is_initialized():
-                dist.destroy_process_group()
-
-            print('=============== End of fine-tuning ===============')
-            print('Training time {}'.format(total_time_str))
-            
             break
+
+    total_time = time.time() - start_time
+    total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+
+    if args.distributed and dist.is_initialized():
+        dist.destroy_process_group()
+
+    print('=============== End of fine-tuning ===============')
+    print('Training time {}'.format(total_time_str))
 
 
 if __name__ == '__main__':
