@@ -216,7 +216,6 @@ def get_args():
         '--dist_eval', default=False, action='store_true',
         help='Enabling distributed evaluation (recommended during training for faster monitor)'
     )
-    parser.add_argument('--num_workers', default=10, type=int)
     parser.add_argument('--num_workers', type=int, default=10)
     parser.add_argument(
         '--pin_mem', action='store_true',
