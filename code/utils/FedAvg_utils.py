@@ -22,7 +22,6 @@ from timm.models.layers import trunc_normal_
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy
 
 from . import misc as misc
-from .lars import LARS
 from .lr_decay import param_groups_lrd
 from .weight_decay import add_weight_decay
 from .pos_embed import interpolate_pos_embed
