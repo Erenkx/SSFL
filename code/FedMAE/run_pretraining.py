@@ -136,7 +136,7 @@ def get_args():
         '--world_size', type=int, default=1,
         help='Number of distributed processes'
     )
-    parser.add_argument('--local_rank', type=int, default=1)
+    parser.add_argument('--local_rank', type=int, default=-1)
     parser.add_argument('--sync_bn', default=False, action='store_true')
     parser.add_argument('--dist_on_itp', action='store_true')
     parser.add_argument(
