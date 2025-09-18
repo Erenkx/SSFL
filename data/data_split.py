@@ -59,7 +59,7 @@ def dirichlet_split(
         dict: A dictionary mapping client indices to lists of data 
             indices. Keys are client IDs starting from 1.
     """
-    np.random.seed(2025)
+    np.random.seed(2022)
     N = labels.shape[0]
     clients = {}
 
