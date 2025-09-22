@@ -1,5 +1,6 @@
 """
-Utility for logging model size and training configuration.
+This module provides a utility function for logging and saving model
+size and training configuration.
 
 Originally adapted from the SSL-FL codebase:
 https://github.com/rui-yan/SSL-FL
@@ -11,6 +12,10 @@ import os
 def print_options(args, model):
     """
     Prints and saves the model size and training configuration.
+
+    Args:
+        args: Command-line arguments containing training configuration.
+        model: The model instance being trained.
     """
     # Compute total number of trainable parameters in millions
     num_params = sum(
@@ -18,8 +23,7 @@ def print_options(args, model):
     ) / 1e6
 
     message = (
-        f'======== FL training of {args.model} with total model parameters: ' \
-        f'{num_params:2.1f}M ========\n' \
+        f'======== FL training of {args.model} ({num_params:2.1f}M) ========\n'
         '++++++++ Other training related parameters ++++++++\n'
     )
 
@@ -32,6 +36,6 @@ def print_options(args, model):
     print(message)
 
     # Save the log to disk
-    args.file_name = os.path.join(args.output_dir, 'log_file.txt')
-    with open(args.file_name, 'w') as fout:
+    log_file_path = os.path.join(args.output_dir, 'log_file.txt')
+    with open(log_file_path, 'w') as fout:
         fout.write(message + '\n')

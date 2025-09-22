@@ -206,7 +206,7 @@ def view_split(
     split_folders = sorted([
         d for d in os.listdir(client_root)
         if os.path.isdir(os.path.join(client_root, d)) 
-            and d.startswith('split_')
+           and d.startswith('split_')
     ])
     split_summary = {}
 
@@ -243,8 +243,8 @@ def view_split(
     if len(split_folders) == 1:
         axes = [axes]   # make sure axes is iterable
 
-    for i, split_id in enumerate(split_folders):
-        df_split = df.loc[:, split_id].apply(pd.Series)
+    for i, split_name in enumerate(split_folders):
+        df_split = df.loc[:, split_name].apply(pd.Series)
         df_split = df_split.reindex(sorted(df_split.columns), axis=1)
         df_split = df_split.sort_index(axis=0)
         df_split["Client ID"] = df_split.index
@@ -255,7 +255,7 @@ def view_split(
             kind="barh",
             stacked=True,
             cmap="tab20c",
-            title=split_id,
+            title=split_name,
             ax=axes[i],
             legend=(i == len(split_folders) - 1)
         )
@@ -264,7 +264,7 @@ def view_split(
             axes[i].set_yticks([])
             axes[i].set(ylabel=None)
 
-        axes[i].set_title(split_id)
+        axes[i].set_title(split_name)
 
     fig.tight_layout()
 
@@ -280,6 +280,6 @@ def view_split(
 
 if __name__ == '__main__':
     dataset = 'Retina'
-    data_path = os.path.join(os.getcwd(), dataset)
+    data_path = os.path.join(os.path.dirname(__file__), dataset)
     split_data(data_path=data_path, n_clients=5, n_classes=2)
     view_split(data_path=data_path, save_plot=True)
