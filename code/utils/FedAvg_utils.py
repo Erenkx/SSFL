@@ -13,7 +13,6 @@ from __future__ import absolute_import, division, print_function
 
 from copy import deepcopy
 
-import numpy as np
 import torch
 import torch.nn as nn
 from timm.utils import accuracy
@@ -145,7 +144,7 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
                 nn.parallel.DistributedDataParallel(
                     model_all[proxy_single_client],
                     device_ids=[args.gpu],
-                    find_unused_parameters=True
+                    find_unused_parameters=False
                 )
             )
             model_without_ddp = model_all[proxy_single_client].module
@@ -230,18 +229,9 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
         
 
 def topk_sparsify(tensor, k_frac):
-    flat = tensor.view(-1)
-    k = max(1, int(k_frac * flat.numel()))
-    _, topk_idx = torch.topk(flat.abs(), k, sorted=False)
-    mask = torch.zeros_like(flat, dtype=torch.bool)
-    mask[topk_idx] = True
-    sparse_tensor = torch.zeros_like(flat)
-    sparse_tensor[topk_idx] = flat[topk_idx]
-
-    return sparse_tensor.view_as(tensor)
-
-
-def topk_sparsify(tensor, k_frac):
+    """
+    Applies a top-k sparsification to the input tensor.
+    """
     flat = tensor.view(-1)
     k = max(1, int(k_frac * flat.numel()))
     _, topk_idx = torch.topk(flat.abs(), k, sorted=False)
@@ -261,8 +251,8 @@ def average_model(args, model_avg, model_all):
     print('Calculating the model average...')
     params = dict(model_avg.named_parameters())
     train_mode = args.train_mode
-    if train_mode == 'pretrain': 
-        topk_ratio = getattr(args, 'topk_ratio', 0.1)
+    if train_mode == 'pretrain':
+        topk_ratio = getattr(args, 'topk_ratio', 1.0) # default no topk
 
     for name, param in params.items():
         agg_update = torch.zeros_like(param.data)
@@ -292,7 +282,7 @@ def average_model(args, model_avg, model_all):
                 or param.numel() < 10000
                 or '.bias' in name
                 or 'norm' in name.lower()
-            ):
+            ): # no topk for finetune or small params
                 agg_update += delta * single_client_weight
             else:
                 sparse_delta = topk_sparsify(delta, topk_ratio)
