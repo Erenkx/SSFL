@@ -546,8 +546,6 @@ def main(args, model):
             ) as f:
                 f.write(json.dumps(log_stats) + "\n")
         
-        model_avg.to('cpu')
-        
         print(
             'global_step_per_client:', 
             args.global_step_per_client[proxy_single_client]

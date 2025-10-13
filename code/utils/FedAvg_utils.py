@@ -13,7 +13,6 @@ from __future__ import absolute_import, division, print_function
 
 from copy import deepcopy
 
-import numpy as np
 import torch
 import torch.nn as nn
 from timm.utils import accuracy
@@ -145,7 +144,7 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
                 nn.parallel.DistributedDataParallel(
                     model_all[proxy_single_client],
                     device_ids=[args.gpu],
-                    find_unused_parameters=True
+                    find_unused_parameters=False
                 )
             )
             model_without_ddp = model_all[proxy_single_client].module
@@ -234,7 +233,6 @@ def average_model(args, model_avg, model_all):
     Averages the parameters of multiple client models into a single
     global model.
     """
-    model_avg.cpu()
     print('Calculating the model average...')
     params = dict(model_avg.named_parameters())
 
@@ -243,30 +241,23 @@ def average_model(args, model_avg, model_all):
             single_client = args.proxy_clients[client]
 
             single_client_weight = args.client_weights[single_client]
-            single_client_weight = torch.from_numpy(
-                np.array(single_client_weight)
-            ).float()
+            single_client_weight = torch.tensor(
+                single_client_weight, dtype=torch.float,
+                device=param.data.device
+            )
 
-            if client == 0:
-                if args.distributed:
-                    tmp_param_data = dict(
-                        model_all[single_client].module.named_parameters()
-                    )[name].data * single_client_weight
-                else:
-                    tmp_param_data = dict(
-                        model_all[single_client].named_parameters()
-                    )[name].data * single_client_weight
+            if args.distributed:
+                local_param = dict(
+                    model_all[single_client].module.named_parameters()
+                )[name].data
             else:
-                if args.distributed:
-                    tmp_param_data += dict(
-                        model_all[single_client].module.named_parameters()
-                    )[name].data * single_client_weight
-                else:
-                    tmp_param_data += dict(
-                        model_all[single_client].named_parameters()
-                    )[name].data * single_client_weight
+                local_param = dict(
+                    model_all[single_client].named_parameters()
+                )[name].data
 
-        params[name].data.copy_(tmp_param_data)
+            delta = local_param - param.data
+
+        params[name].data += delta * single_client_weight
 
     print('Updating each client model parameters...')
 
