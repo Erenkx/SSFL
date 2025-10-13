@@ -166,10 +166,6 @@ def get_args():
         '--split_type', type=str, default='central',
         help='Which data partition to use'
     )
-    parser.add_argument(
-        '--topk_ratio', type=float, default=1.0,
-        help='Top-k sparsification ratio'
-    )
 
     return parser.parse_args()
 

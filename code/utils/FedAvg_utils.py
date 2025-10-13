@@ -228,21 +228,6 @@ def Partial_Client_Selection(args, model, mode='pretrain'):
             )
         
 
-def topk_sparsify(tensor, k_frac):
-    """
-    Applies a top-k sparsification to the input tensor.
-    """
-    flat = tensor.view(-1)
-    k = max(1, int(k_frac * flat.numel()))
-    _, topk_idx = torch.topk(flat.abs(), k, sorted=False)
-    mask = torch.zeros_like(flat, dtype=torch.bool)
-    mask[topk_idx] = True
-    sparse_tensor = torch.zeros_like(flat)
-    sparse_tensor[topk_idx] = flat[topk_idx]
-
-    return sparse_tensor.view_as(tensor)
-
-
 def average_model(args, model_avg, model_all):
     """
     Averages the parameters of multiple client models into a single
@@ -250,13 +235,8 @@ def average_model(args, model_avg, model_all):
     """
     print('Calculating the model average...')
     params = dict(model_avg.named_parameters())
-    train_mode = args.train_mode
-    if train_mode == 'pretrain':
-        topk_ratio = getattr(args, 'topk_ratio', 1.0) # default no topk
 
     for name, param in params.items():
-        agg_update = torch.zeros_like(param.data)
-
         for client in range(len(args.proxy_clients)):
             single_client = args.proxy_clients[client]
 
@@ -277,18 +257,7 @@ def average_model(args, model_avg, model_all):
 
             delta = local_param - param.data
 
-            if (
-                train_mode == 'finetune'
-                or param.numel() < 10000
-                or '.bias' in name
-                or 'norm' in name.lower()
-            ): # no topk for finetune or small params
-                agg_update += delta * single_client_weight
-            else:
-                sparse_delta = topk_sparsify(delta, topk_ratio)
-                agg_update += sparse_delta * single_client_weight
-
-        params[name].data += agg_update
+        params[name].data += delta * single_client_weight
 
     print('Updating each client model parameters...')
 

@@ -16,7 +16,6 @@ N_GPUS=1
 EPOCHS=1600
 BLR="2e-3"
 BATCH_SIZE=32
-TOPK_RATIO=0.1
 
 OUTPUT_PATH="/home/erenk/Documents/USYD/Honours/SSFL/data/ckpts/${DATASET}/${FED_MODEL}/pretrained_epoch${EPOCHS}_${SPLIT_TYPE}_blr${BLR}_bs${BATCH_SIZE}_ratio${MASK_RATIO}_dis${N_GPUS}"
 
@@ -38,8 +37,7 @@ CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=1 torchrun --nproc_per_node=${N_GPUS} run
     --sync_bn \
     --n_clients ${N_CLIENTS} \
     --E_epoch 1 \
-    --num_local_clients -1 \
-    --topk_ratio ${TOPK_RATIO}
+    --num_local_clients -1
 
 # ---------- Finetuning with pretrained model ----------
 FT_EPOCHS=100
