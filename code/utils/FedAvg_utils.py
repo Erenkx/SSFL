@@ -237,12 +237,11 @@ def average_model(args, model_avg, model_all):
     params = dict(model_avg.named_parameters())
 
     for name, param in params.items():
-        for client in range(len(args.proxy_clients)):
-            single_client = args.proxy_clients[client]
-
-            single_client_weight = args.client_weights[single_client]
-            single_client_weight = torch.tensor(
-                single_client_weight, dtype=torch.float,
+        agg = torch.zeros_like(param.data)
+        for single_client in args.proxy_clients:
+            weight = torch.tensor(
+                args.client_weights[single_client],
+                dtype=torch.float,
                 device=param.data.device
             )
 
@@ -255,9 +254,9 @@ def average_model(args, model_avg, model_all):
                     model_all[single_client].named_parameters()
                 )[name].data
 
-            delta = local_param - param.data
-
-        params[name].data += delta * single_client_weight
+            agg.add_(local_param, alpha=weight)
+        
+        param.data.copy_(agg)
 
     print('Updating each client model parameters...')
 
