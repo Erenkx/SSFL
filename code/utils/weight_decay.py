@@ -6,7 +6,11 @@ https://github.com/rui-yan/SSL-FL
 """
 
 
-def add_weight_decay(model, weight_decay=1e-5, skip_list=()):
+def add_weight_decay(
+    model, 
+    weight_decay=1e-5, 
+    lora_weight_decay=0.01, 
+    skip_list=()):
     """
     Adds weight decay to the given model's parameters.
 
@@ -22,6 +26,7 @@ def add_weight_decay(model, weight_decay=1e-5, skip_list=()):
     """
     decay = []
     no_decay = []
+    lora_decay = []
 
     for name, param in model.named_parameters():
         # Skip frozen parameters
@@ -34,10 +39,13 @@ def add_weight_decay(model, weight_decay=1e-5, skip_list=()):
             or name in skip_list
         ):
             no_decay.append(param)
+        elif '.lora_A' in name or '.lora_B' in name:
+            lora_decay.append(param)
         else:
             decay.append(param)
     
     return [
         {'params': no_decay, 'weight_decay': 0.0},
-        {'params': decay, 'weight_decay': weight_decay}
+        {'params': decay, 'weight_decay': weight_decay},
+        {'params': lora_decay, 'weight_decay': lora_weight_decay}
     ]
