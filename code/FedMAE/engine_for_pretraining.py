@@ -20,6 +20,7 @@ import utils.lr_sched as lr_sched
 
 def train_one_epoch(
     model: torch.nn.Module,
+    global_model: torch.nn.Module,
     data_loader: Iterable,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
@@ -60,8 +61,27 @@ def train_one_epoch(
 
         with torch.amp.autocast('cuda'):
             loss, _, _ = model(samples, mask_ratio=args.mask_ratio)
+            task_loss = loss.clone()
+            metric_logger.update(loss=task_loss.item())
+
+            # Add FedProx proximal term
+            if global_model is not None and args.mu > 0.0:
+                prox_term = 0.0
+                for param, global_param in zip(
+                    model.parameters(),
+                    global_model.parameters()
+                ):
+                    prox_term += ((param - global_param.detach()) ** 2).sum()
+
+                loss += (args.mu / 2) * prox_term
+                metric_logger.update(prox=prox_term.item())
 
         loss_value = loss.item()
+        metric_logger.update(total_loss=loss_value)
+
+        if task_loss.item() > 0 and args.mu > 0.0:
+            prox_ratio = (args.mu / 2 * prox_term.item()) / task_loss.item()
+            metric_logger.update(prox_ratio=prox_ratio)
 
         if not math.isfinite(loss_value):
             print(f'Loss is {loss_value}, stop training.')
@@ -79,7 +99,6 @@ def train_one_epoch(
 
         torch.cuda.synchronize()
 
-        metric_logger.update(loss=loss_value)
         min_lr = 10.0
         max_lr = 0.0
         for param_group in optimizer.param_groups:
