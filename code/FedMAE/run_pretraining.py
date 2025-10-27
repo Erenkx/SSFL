@@ -19,9 +19,15 @@ from torch.utils.tensorboard import SummaryWriter
 import utils.misc as misc
 import FedMAE.models_mae as models_mae
 from utils.start_config import print_options
+from utils.weight_decay import add_weight_decay
 from FedMAE.engine_for_pretraining import train_one_epoch
 from utils.FedAvg_utils import Partial_Client_Selection, average_model
 from utils.datasets import DatasetFLPretrain, create_dataset_and_evalmetrix
+from utils.lora_utils import (
+    fuse_adapters,
+    add_lora_to_vit, 
+    set_trainable_for_adapter_phase
+)
 
 
 def get_args():
@@ -166,6 +172,24 @@ def get_args():
         '--split_type', type=str, default='central',
         help='Which data partition to use'
     )
+    parser.add_argument(
+        '--mu', type=float, default=0.0,
+        help='FedProx regularization strength'
+    )
+
+    # LoRA related parameters
+    parser.add_argument(
+        '--lora_start_epoch', type=int, default=40,
+        help='The communication round to switch from full-param warm-up to adapter only'
+    )
+    parser.add_argument('--lora_rank', type=int, default=8)
+    parser.add_argument('--lora_alpha', type=int, default=16)
+    parser.add_argument('--lora_dropout', type=float, default=0.0)
+    parser.add_argument('--lora_weight_decay', type=float, default=0.01)
+    parser.add_argument(
+        '--lora_fuse_every', type=int, default=5,
+        help='Fuse adapters into base every N epochs after lora_start_epoch'
+    )
 
     return parser.parse_args()
 
@@ -217,6 +241,59 @@ def main(args, model):
     while True:
         epoch += 1
         print('epoch: ', epoch)
+        adapter_phase = epoch >= args.lora_start_epoch
+        if adapter_phase:
+            print('=== Adapter-only training phase ===')
+        else:
+            print('=== Warm-up full-parameter training phase ===')
+
+        if epoch == args.lora_start_epoch:
+            add_lora_to_vit(
+                model=model_avg,
+                r=args.lora_rank,
+                alpha=args.lora_alpha,
+                dropout=args.lora_dropout
+            )
+            set_trainable_for_adapter_phase(model_avg)
+            # Share identical LoRA initialization across all clients
+            global_state = model_avg.state_dict()
+
+            for cid in args.proxy_clients:
+                cm = model_all[cid]
+                add_lora_to_vit(
+                    model=cm,
+                    r=args.lora_rank,
+                    alpha=args.lora_alpha,
+                    dropout=args.lora_dropout
+                )
+                cm.load_state_dict(global_state, strict=False)
+
+                # Freeze base, enable adapters/LN/bias only
+                set_trainable_for_adapter_phase(cm)
+
+                if args.distributed:
+                    model_all[cid] = torch.nn.parallel.DistributedDataParallel(
+                        cm,
+                        device_ids=[args.gpu],
+                        find_unused_parameters=False
+                    )
+                    optim_target = model_all[cid].module
+                else:
+                    model_all[cid] = cm
+                    optim_target = cm
+
+                # Rebuild optimizer over trainable parameters only
+                param_groups = add_weight_decay(
+                    optim_target, 
+                    weight_decay=args.weight_decay,
+                    lora_weight_decay=args.lora_weight_decay
+                )
+
+                optimizer_all[cid] = torch.optim.AdamW(
+                    param_groups,
+                    lr=args.lr,
+                    betas=(0.9, 0.95)
+                )
         
         # Randomly select partial clients
         if args.num_local_clients == len(args.dis_csv_files): # all clients
@@ -305,7 +382,7 @@ def main(args, model):
             for inner_epoch in range(args.E_epoch):
                 # ========= training one epoch of MAE =========
                 train_stats = train_one_epoch(
-                    model, data_loader_train,
+                    model, model_avg, data_loader_train,
                     optimizer, device, epoch, loss_scaler,
                     proxy_single_client=proxy_single_client,
                     log_writer=log_writer,
@@ -333,7 +410,22 @@ def main(args, model):
             
         # Average model
         average_model(args, model_avg, model_all)
-        
+
+        # Fuse adapters
+        if (
+            epoch > args.lora_start_epoch 
+            and args.lora_fuse_every > 0
+        ):
+            if (epoch - args.lora_start_epoch + 1) % args.lora_fuse_every == 0:
+                gm = model_avg
+                print(f'Fusing adapters into base at epoch {epoch}')
+                fuse_adapters(gm)
+
+                gsd = gm.state_dict()
+                for cid in args.proxy_clients:
+                    cm = model_all[cid]
+                    cm.load_state_dict(gsd)
+
         # Save the global model
         if args.output_dir and (epoch + 1) % args.save_ckpt_freq == 0:
             misc.save_model(
