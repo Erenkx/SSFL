@@ -13,6 +13,7 @@ import math
 from typing import Iterable
 
 import torch
+from torch.nn.utils import parameters_to_vector
 
 import utils.misc as misc
 import utils.lr_sched as lr_sched
@@ -66,12 +67,11 @@ def train_one_epoch(
 
             # Add FedProx proximal term
             if global_model is not None and args.mu > 0.0:
-                prox_term = 0.0
-                for param, global_param in zip(
-                    model.parameters(),
+                local_vec = parameters_to_vector(model.parameters())
+                global_vec = parameters_to_vector(
                     global_model.parameters()
-                ):
-                    prox_term += ((param - global_param.detach()) ** 2).sum()
+                ).detach()
+                prox_term = torch.sum((local_vec - global_vec) ** 2)
 
                 loss += (args.mu / 2) * prox_term
                 metric_logger.update(prox=prox_term.item())
