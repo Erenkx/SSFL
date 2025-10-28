@@ -238,6 +238,9 @@ def main(args, model):
     )
     start_time = time.time()
 
+    def unwrap_model(model):
+        return model.module if hasattr(model, 'module') else model
+
     while True:
         epoch += 1
         print('epoch: ', epoch)
@@ -248,18 +251,19 @@ def main(args, model):
             print('=== Warm-up full-parameter training phase ===')
 
         if epoch == args.lora_start_epoch:
+            gm = unwrap_model(model_avg)
             add_lora_to_vit(
-                model=model_avg,
+                model=gm,
                 r=args.lora_rank,
                 alpha=args.lora_alpha,
                 dropout=args.lora_dropout
             )
-            set_trainable_for_adapter_phase(model_avg)
+            set_trainable_for_adapter_phase(gm)
             # Share identical LoRA initialization across all clients
-            global_state = model_avg.state_dict()
+            global_state = gm.state_dict()
 
             for cid in args.proxy_clients:
-                cm = model_all[cid]
+                cm = unwrap_model(model_all[cid])
                 add_lora_to_vit(
                     model=cm,
                     r=args.lora_rank,
@@ -417,13 +421,13 @@ def main(args, model):
             and args.lora_fuse_every > 0
         ):
             if (epoch - args.lora_start_epoch + 1) % args.lora_fuse_every == 0:
-                gm = model_avg
+                gm = unwrap_model(model_avg)
                 print(f'Fusing adapters into base at epoch {epoch}')
                 fuse_adapters(gm)
 
                 gsd = gm.state_dict()
                 for cid in args.proxy_clients:
-                    cm = model_all[cid]
+                    cm = unwrap_model(model_all[cid])
                     cm.load_state_dict(gsd)
 
         # Save the global model
