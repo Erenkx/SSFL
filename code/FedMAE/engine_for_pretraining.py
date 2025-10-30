@@ -13,7 +13,6 @@ import math
 from typing import Iterable
 
 import torch
-from torch.nn.utils import parameters_to_vector
 
 import utils.misc as misc
 import utils.lr_sched as lr_sched
