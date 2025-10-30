@@ -382,7 +382,7 @@ def main(args, model):
             for inner_epoch in range(args.E_epoch):
                 # ========= training one epoch of MAE =========
                 train_stats = train_one_epoch(
-                    model, model_avg, data_loader_train,
+                    model, data_loader_train,
                     optimizer, device, epoch, loss_scaler,
                     proxy_single_client=proxy_single_client,
                     log_writer=log_writer,

@@ -20,7 +20,6 @@ import utils.lr_sched as lr_sched
 
 def train_one_epoch(
     model: torch.nn.Module,
-    global_model: torch.nn.Module,
     data_loader: Iterable,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
