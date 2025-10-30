@@ -62,26 +62,9 @@ def train_one_epoch(
 
         with torch.amp.autocast('cuda'):
             loss, _, _ = model(samples, mask_ratio=args.mask_ratio)
-            task_loss = loss.clone()
-            metric_logger.update(loss=task_loss.item())
-
-            # Add FedProx proximal term
-            if global_model is not None and args.mu > 0.0:
-                local_vec = parameters_to_vector(model.parameters())
-                global_vec = parameters_to_vector(
-                    global_model.parameters()
-                ).detach()
-                prox_term = torch.sum((local_vec - global_vec) ** 2)
-
-                loss += (args.mu / 2) * prox_term
-                metric_logger.update(prox=prox_term.item())
 
         loss_value = loss.item()
-        metric_logger.update(total_loss=loss_value)
-
-        if task_loss.item() > 0 and args.mu > 0.0:
-            prox_ratio = (args.mu / 2 * prox_term.item()) / task_loss.item()
-            metric_logger.update(prox_ratio=prox_ratio)
+        metric_logger.update(loss=loss_value)
 
         if not math.isfinite(loss_value):
             print(f'Loss is {loss_value}, stop training.')

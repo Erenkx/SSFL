@@ -172,14 +172,10 @@ def get_args():
         '--split_type', type=str, default='central',
         help='Which data partition to use'
     )
-    parser.add_argument(
-        '--mu', type=float, default=0.0,
-        help='FedProx regularization strength'
-    )
 
     # LoRA related parameters
     parser.add_argument(
-        '--lora_start_epoch', type=int, default=40,
+        '--lora_start_epoch', type=int, default=0,
         help='The communication round to switch from full-param warm-up to adapter only'
     )
     parser.add_argument('--lora_rank', type=int, default=8)
@@ -187,7 +183,7 @@ def get_args():
     parser.add_argument('--lora_dropout', type=float, default=0.0)
     parser.add_argument('--lora_weight_decay', type=float, default=0.01)
     parser.add_argument(
-        '--lora_fuse_every', type=int, default=5,
+        '--lora_fuse_every', type=int, default=0,
         help='Fuse adapters into base every N epochs after lora_start_epoch'
     )
 
