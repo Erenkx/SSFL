@@ -247,14 +247,14 @@ def view_split(
         df_split = df.loc[:, split_name].apply(pd.Series)
         df_split = df_split.reindex(sorted(df_split.columns), axis=1)
         df_split = df_split.sort_index(axis=0)
-        df_split["Client ID"] = df_split.index
-        df_split = df_split.rename(columns={0: "normal", 1: "diseased"})
+        df_split['Client ID'] = df_split.index
+        df_split = df_split.rename(columns={0: 'normal', 1: 'diseased'})
 
         df_split.plot(
-            x="Client ID",
-            kind="barh",
+            x='Client ID',
+            kind='barh',
             stacked=True,
-            cmap="tab20c",
+            cmap='tab20c',
             title=split_name,
             ax=axes[i],
             legend=(i == len(split_folders) - 1)
@@ -278,8 +278,133 @@ def view_split(
     return split_summary
 
 
+def view_covid(
+    data_path: str,
+    n_clients: int = 12,
+    save_plot: bool = False
+) -> dict:
+    """
+    Loads and visualizes client-wise label distributions for COVID-FL. 
+
+    Args:
+        data_path (str): Path to the dataset directory. Should contain
+            '{n_clients}_clients/split_real' and 'labels.csv'.
+        n_clients (int): Number of clients. Default is 12.
+        save_plot (bool): If True, saves bar plots of class distribution
+            for each split. Default is False.
+
+    Returns:
+        dict: Nested dictionary of label counts per client for each 
+            split. 
+            Format: dict[split_id][client_id] = Counter({label: count})
+    """
+    # Load global labels
+    label_path = os.path.join(data_path, 'labels.csv')
+    labels = {
+        line.strip().split(',')[0]: int(float(line.strip().split(',')[1]))
+        for line in open(label_path)
+    }
+    
+    # Locate split directories
+    client_root = os.path.join(data_path, f'{n_clients}_clients')
+    split_folders = sorted([
+        d for d in os.listdir(client_root)
+        if os.path.isdir(os.path.join(client_root, d)) 
+           and d.startswith('split_')
+    ])
+    split_summary = {}
+
+    # Collect label counts per client per split
+    for split in split_folders:
+        client_label_counter = {}
+        client_folder = os.path.join(client_root, split)
+        client_files = sorted(
+            glob.glob(os.path.join(client_folder, '*.csv'))
+        )
+        
+        for client_path in client_files:
+            client_name = os.path.basename(client_path).split('.')[0]
+
+            with open(client_path, 'r') as fin:
+                samples = [line.strip().split(',')[0] for line in fin]
+            
+            sample_labels = [
+                labels[sample] for sample in samples 
+                if sample in labels
+            ]
+            client_label_counter[client_name] = Counter(sample_labels)
+
+        split_summary[split] = client_label_counter
+
+    # Plot distributions
+    sns.set_theme(font_scale=1.8, style='white')
+
+    df = pd.DataFrame(split_summary)
+    fig, axes = plt.subplots(
+        1, len(split_folders), figsize=(12 * len(split_folders), 5)
+    )
+
+    if len(split_folders) == 1:
+        axes = [axes]   # make sure axes is iterable
+
+    for i, split_name in enumerate(split_folders):
+        df_split = df.loc[:, split_name].apply(pd.Series)
+        df_split = df_split.reindex(sorted(df_split.columns), axis=1)
+        df_split = df_split.sort_index(axis=0)
+        df_split = df_split.rename(index={
+            'sirm': 'SIRM', 
+            'rsna-0': 'RSNA-0',
+            'rsna-1': 'RSNA-1',
+            'rsna-2': 'RSNA-2',
+            'rsna-3': 'RSNA-3',
+            'rsna-4': 'RSNA-4',
+            'ricord_c': 'MIDRC-RICORD-1c',
+            'gz': 'Guangzhou',
+            'eurorad': 'Eurorad',
+            'cohen': 'Cohen',
+            'bimcv': 'BIMCV-COVID19'
+        })
+        df_split['Client'] = df_split.index
+        df_split = df_split.rename(columns={
+            0: 'normal', 
+            1: 'pneumonia', 
+            2: 'COVID-19'
+        })
+
+        df_split.plot(
+            x='Client',
+            kind='barh',
+            stacked=True,
+            cmap='tab20c',
+            title=split_name,
+            ax=axes[i],
+            legend=(i == len(split_folders) - 1)
+        )
+
+        if i > 0:
+            axes[i].set_yticks([])
+            axes[i].set(ylabel=None)
+
+        axes[i].set_title('COVID-FL')
+
+    fig.tight_layout()
+
+    if save_plot:
+        save_path = os.path.join(client_root, 'split_distribution.png')
+        fig.savefig(save_path)
+        print(f'Saved distribution plot to: {save_path}')
+
+    plt.show()
+
+    return split_summary
+
+
 if __name__ == '__main__':
     dataset = 'Retina'
     data_path = os.path.join(os.path.dirname(__file__), dataset)
     split_data(data_path=data_path, n_clients=5, n_classes=2)
-    view_split(data_path=data_path, save_plot=True)
+    view_split(data_path=data_path, n_clients=5, save_plot=True)
+
+    dataset = 'COVID-FL'
+    data_path = os.path.join(os.path.dirname(__file__), dataset)
+    view_covid(data_path=data_path, n_clients=12, save_plot=True)
