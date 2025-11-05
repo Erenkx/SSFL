@@ -1,8 +1,8 @@
 # Ignore image files in train and test folders
 data/Retina/train/
 data/Retina/test/
-data/COVID-19/train/
-data/COVID-19/test/
+data/COVID-FL/train/
+data/COVID-FL/test/
 
 # Ignore checkpoints and logs
 data/ckpts/
