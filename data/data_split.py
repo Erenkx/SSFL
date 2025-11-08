@@ -243,6 +243,11 @@ def view_split(
     if len(split_folders) == 1:
         axes = [axes]   # make sure axes is iterable
 
+    split_name_map = {
+        'split_1': 'IID',
+        'split_2': 'Mild Non-IID',
+        'split_3': 'Severe Non-IID'
+    }
     for i, split_name in enumerate(split_folders):
         df_split = df.loc[:, split_name].apply(pd.Series)
         df_split = df_split.reindex(sorted(df_split.columns), axis=1)
@@ -264,7 +269,7 @@ def view_split(
             axes[i].set_yticks([])
             axes[i].set(ylabel=None)
 
-        axes[i].set_title(split_name)
+        axes[i].set_title(split_name_map[split_name])
 
     fig.tight_layout()
 
