@@ -14,10 +14,15 @@ N_GPUS=1
 
 # ---------- FedMAE pretraining ----------
 EPOCHS=1600
-BLR="2e-3"
+BLR="4e-3"
+MIN_LR="2e-4"
 BATCH_SIZE=32
 
-OUTPUT_PATH="/home/erenk/Documents/USYD/Honours/SSFL/data/ckpts/${DATASET}/${FED_MODEL}/pretrained_epoch${EPOCHS}_${SPLIT_TYPE}_blr${BLR}_bs${BATCH_SIZE}_ratio${MASK_RATIO}_dis${N_GPUS}"
+LORA_RANK=128
+LORA_ALPHA=256
+LORA_DROPOUT=0.0
+
+OUTPUT_PATH="/home/erenk/Documents/USYD/Honours/SSFL/data/ckpts/${DATASET}/${FED_MODEL}/pretrained_epoch${EPOCHS}_${SPLIT_TYPE}_blr${BLR}_bs${BATCH_SIZE}_ratio${MASK_RATIO}_dis${N_GPUS}_lora_rank${LORA_RANK}_alpha${LORA_ALPHA}_dropout${LORA_DROPOUT}"
 
 CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=1 torchrun --nproc_per_node=${N_GPUS} run_pretraining.py \
     --train_mode pretrain \
@@ -25,6 +30,7 @@ CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=1 torchrun --nproc_per_node=${N_GPUS} run
     --dataset ${DATASET} \
     --output_dir ${OUTPUT_PATH} \
     --blr ${BLR} \
+    --min_lr ${MIN_LR} \
     --batch_size ${BATCH_SIZE} \
     --save_ckpt_freq 200 \
     --max_communication_rounds ${EPOCHS} \
@@ -37,7 +43,13 @@ CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=1 torchrun --nproc_per_node=${N_GPUS} run
     --sync_bn \
     --n_clients ${N_CLIENTS} \
     --E_epoch 1 \
-    --num_local_clients -1
+    --num_local_clients -1 \
+    --lora_rank ${LORA_RANK} \
+    --lora_alpha ${LORA_ALPHA} \
+    --lora_dropout ${LORA_DROPOUT} \
+    --lora_start_epoch 0 \
+    --lora_fuse_every 1600 \
+    --lora_weight_decay 0.005
 
 # ---------- Finetuning with pretrained model ----------
 FT_EPOCHS=100
