@@ -69,8 +69,12 @@ def train_one_epoch(
         
         with torch.amp.autocast('cuda'):
             outputs = model(samples)
-            loss = criterion(outputs, targets)
 
+        if not torch.isfinite(outputs).all():
+            with torch.amp.autocast('cuda', enabled=False):
+                outputs = model(samples)
+
+        loss = criterion(outputs.float(), targets)
         loss_value = loss.item()
 
         if not math.isfinite(loss_value):

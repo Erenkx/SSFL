@@ -62,6 +62,7 @@ def train_one_epoch(
             loss, _, _ = model(samples, mask_ratio=args.mask_ratio)
 
         loss_value = loss.item()
+        metric_logger.update(loss=loss_value)
 
         if not math.isfinite(loss_value):
             print(f'Loss is {loss_value}, stop training.')
@@ -79,7 +80,6 @@ def train_one_epoch(
 
         torch.cuda.synchronize()
 
-        metric_logger.update(loss=loss_value)
         min_lr = 10.0
         max_lr = 0.0
         for param_group in optimizer.param_groups:
