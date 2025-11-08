@@ -127,14 +127,11 @@ def set_trainable_for_adapter_phase(model: nn.Module) -> None:
         'pos_embed',
         'patch_embed',
         'cls_token',
-        'dist_token',
         'mask_token',
         'decoder_pos_embed',
         'decoder_embed',
         'decoder_pred',
-        'decoder_norm',
-        'relative_position',
-        'rel_pos'
+        'decoder_norm'
     ]
 
     # Enable LoRA factors + biases + LayerNorm + lightweight params

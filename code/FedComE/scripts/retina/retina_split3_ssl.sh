@@ -1,6 +1,6 @@
 #!/bin/bash
 
-FED_MODEL="FedMAE"
+FED_MODEL="FedComE"
 cd /home/erenk/Documents/USYD/Honours/SSFL/code/${FED_MODEL}/
 
 DATASET="Retina"
@@ -12,7 +12,7 @@ N_CLIENTS=5
 MASK_RATIO=0.6
 N_GPUS=1
 
-# ---------- FedMAE pretraining ----------
+# ---------- FedComE pre-training ----------
 EPOCHS=1600
 BLR="4e-3"
 MIN_LR="2e-4"
@@ -51,7 +51,7 @@ CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=1 torchrun --nproc_per_node=${N_GPUS} run
     --lora_fuse_every 1600 \
     --lora_weight_decay 0.005
 
-# ---------- Finetuning with pretrained model ----------
+# ---------- Fine-tuning with pre-trained model ----------
 FT_EPOCHS=100
 FT_LR="3e-3"
 FT_BATCH_SIZE=64

@@ -17,10 +17,10 @@ import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 
 import utils.misc as misc
-import FedMAE.models_mae as models_mae
+import FedComE.models_mae as models_mae
 from utils.start_config import print_options
 from utils.weight_decay import add_weight_decay
-from FedMAE.engine_for_pretraining import train_one_epoch
+from FedComE.engine_for_pretraining import train_one_epoch
 from utils.FedAvg_utils import Partial_Client_Selection, average_model
 from utils.datasets import DatasetFLPretrain, create_dataset_and_evalmetrix
 from utils.lora_utils import (

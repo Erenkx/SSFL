@@ -17,9 +17,9 @@ import torch.backends.cudnn as cudnn
 from torch.utils.tensorboard import SummaryWriter
 
 import utils.misc as misc
-import FedMAE.models_vit as models_vit
+import FedComE.models_vit as models_vit
 from utils.start_config import print_options
-from FedMAE.engine_for_finetuning import train_one_epoch
+from FedComE.engine_for_finetuning import train_one_epoch
 from utils.FedAvg_utils import Partial_Client_Selection, valid, average_model
 from utils.datasets import DatasetFLFinetune, create_dataset_and_evalmetrix
 
